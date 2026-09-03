@@ -1,10 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import * as maplibregl from 'maplibre-gl';
+import mapboxgl from 'mapbox-gl';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
-import { Layers, Sparkles, Key, Check } from 'lucide-react';
+import { Layers, Sparkles, Key, Check, AlertTriangle } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 
-// High-Resolution Geospatial Base Maps (100% Free & Open - Zero Token Blocking)
+// Safe token setting for Mapbox GL JS v1 (custom raster styles don't require proprietary token)
+mapboxgl.accessToken =
+  localStorage.getItem('darukaa_custom_mapbox_token') ||
+  import.meta.env.VITE_MAPBOX_TOKEN ||
+  'pk.eyJ1IjoiZGFydWthYS1lYXJ0aCIsImEiOiJjbTdtOGUxdXowMWdsMm5zYWdtOWlhMG5yIn0.open';
+
+// High-Resolution Geospatial Base Maps (100% Token-Free & Open)
 const BASE_STYLES: Record<string, any> = {
   'satellite-streets': {
     version: 8,
@@ -97,7 +103,7 @@ const STYLE_MENU_ITEMS = [
 
 export const MapboxViewer: React.FC = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
   const drawRef = useRef<any | null>(null);
 
   const {
@@ -116,107 +122,112 @@ export const MapboxViewer: React.FC = () => {
   );
   const [showTokenInput, setShowTokenInput] = useState<boolean>(false);
   const [tokenSaved, setTokenSaved] = useState<boolean>(false);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   // Function to bind site polygon layers onto the active map style
   const syncSiteLayers = () => {
     const map = mapRef.current;
     if (!map) return;
 
-    const features = sites
-      .map((site) => {
-        let geometry = site.geojson;
-        if (typeof geometry === 'string') {
-          try {
-            geometry = JSON.parse(geometry);
-          } catch {
-            geometry = null;
+    try {
+      const features = sites
+        .map((site) => {
+          let geometry = site.geojson;
+          if (typeof geometry === 'string') {
+            try {
+              geometry = JSON.parse(geometry);
+            } catch {
+              geometry = null;
+            }
           }
-        }
-        if (geometry?.type === 'Feature') {
-          geometry = geometry.geometry;
-        }
+          if (geometry?.type === 'Feature') {
+            geometry = geometry.geometry;
+          }
 
-        return {
-          type: 'Feature' as const,
-          id: site.id,
-          geometry,
-          properties: {
+          return {
+            type: 'Feature' as const,
             id: site.id,
-            name: site.name,
-            habitat_type: site.habitat_type,
-            area_hectares: site.area_hectares,
-            carbon: site.current_carbon_tco2e || 0,
-            ndvi: site.latest_ndvi || 0,
+            geometry,
+            properties: {
+              id: site.id,
+              name: site.name,
+              habitat_type: site.habitat_type,
+              area_hectares: site.area_hectares,
+              carbon: site.current_carbon_tco2e || 0,
+              ndvi: site.latest_ndvi || 0,
+            },
+          };
+        })
+        .filter((f) => f.geometry);
+
+      const sourceData: any = {
+        type: 'FeatureCollection',
+        features,
+      };
+
+      if (map.getSource('sites-source')) {
+        (map.getSource('sites-source') as mapboxgl.GeoJSONSource).setData(sourceData);
+      } else {
+        map.addSource('sites-source', {
+          type: 'geojson',
+          data: sourceData,
+        });
+
+        // Polygon Fill Layer
+        map.addLayer({
+          id: 'sites-fill',
+          type: 'fill',
+          source: 'sites-source',
+          paint: {
+            'fill-color': [
+              'match',
+              ['get', 'habitat_type'],
+              'Mangrove / Blue Carbon',
+              '#06b6d4',
+              'Tropical Moist Deciduous',
+              '#10b981',
+              'Agroforestry',
+              '#84cc16',
+              'Peatland / Wetland',
+              '#3b82f6',
+              '#f59e0b',
+            ],
+            'fill-opacity': 0.6,
           },
-        };
-      })
-      .filter((f) => f.geometry);
+        });
 
-    const sourceData: any = {
-      type: 'FeatureCollection',
-      features,
-    };
+        // Polygon Glowing Outline Layer
+        map.addLayer({
+          id: 'sites-line',
+          type: 'line',
+          source: 'sites-source',
+          paint: {
+            'line-color': '#34d399',
+            'line-width': 2.5,
+            'line-opacity': 0.95,
+          },
+        });
 
-    if (map.getSource('sites-source')) {
-      (map.getSource('sites-source') as maplibregl.GeoJSONSource).setData(sourceData);
-    } else {
-      map.addSource('sites-source', {
-        type: 'geojson',
-        data: sourceData,
-      });
-
-      // Polygon Fill Layer
-      map.addLayer({
-        id: 'sites-fill',
-        type: 'fill',
-        source: 'sites-source',
-        paint: {
-          'fill-color': [
-            'match',
-            ['get', 'habitat_type'],
-            'Mangrove / Blue Carbon',
-            '#06b6d4', // Cyan
-            'Tropical Moist Deciduous',
-            '#10b981', // Emerald
-            'Agroforestry',
-            '#84cc16', // Lime
-            'Peatland / Wetland',
-            '#3b82f6', // Blue
-            '#f59e0b', // Amber default
-          ],
-          'fill-opacity': 0.6,
-        },
-      });
-
-      // Polygon Glowing Outline Layer
-      map.addLayer({
-        id: 'sites-line',
-        type: 'line',
-        source: 'sites-source',
-        paint: {
-          'line-color': '#34d399',
-          'line-width': 2.5,
-          'line-opacity': 0.95,
-        },
-      });
-
-      // Click event on polygons
-      map.on('click', 'sites-fill', (e: any) => {
-        if (e.features && e.features[0]) {
-          const siteId = e.features[0].properties?.id;
-          if (siteId) {
-            setSelectedSiteId(siteId);
+        // Click event on polygons
+        map.on('click', 'sites-fill', (e: any) => {
+          if (e.features && e.features[0]) {
+            const siteId = e.features[0].properties?.id;
+            if (siteId) {
+              setSelectedSiteId(siteId);
+            }
           }
-        }
-      });
+        });
 
-      map.on('mouseenter', 'sites-fill', () => {
-        map.getCanvas().style.cursor = 'pointer';
-      });
+        map.on('mouseenter', 'sites-fill', () => {
+          map.getCanvas().style.cursor = 'pointer';
+        });
 
-      map.on('mouseleave', 'sites-fill', () => {
-        map.getCanvas().style.cursor = '';
-      });
+        map.on('mouseleave', 'sites-fill', () => {
+          map.getCanvas().style.cursor = '';
+        });
+      }
+    } catch (err) {
+      console.warn('[MapboxViewer] Layer sync warning:', err);
     }
   };
 
@@ -224,59 +235,71 @@ export const MapboxViewer: React.FC = () => {
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    const initialStyle = BASE_STYLES[currentStyleId] || BASE_STYLES['satellite-streets'];
+    try {
+      const initialStyle = BASE_STYLES[currentStyleId] || BASE_STYLES['satellite-streets'];
 
-    const map = new maplibregl.Map({
-      container: mapContainerRef.current,
-      style: initialStyle,
-      center: [78.9629, 20.5937], // Center of India
-      zoom: 4.8,
-      pitch: 25,
-    });
+      const map = new mapboxgl.Map({
+        container: mapContainerRef.current,
+        style: initialStyle,
+        center: [78.9629, 20.5937], // Center of India
+        zoom: 4.8,
+        pitch: 25,
+      });
 
-    map.addControl(new maplibregl.NavigationControl(), 'top-right');
-    map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+      map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+      map.addControl(new mapboxgl.ScaleControl({ unit: 'metric' }), 'bottom-left');
 
-    // Initialize Mapbox Draw (compatible with MapLibre GL IControl)
-    const draw = new MapboxDraw({
-      displayControlsDefault: false,
-      controls: {
-        polygon: true,
-        trash: true,
-      },
-      defaultMode: 'simple_select',
-    });
+      // Initialize Mapbox Draw
+      try {
+        const DrawConstructor = (MapboxDraw as any)?.default || MapboxDraw;
+        if (typeof DrawConstructor === 'function') {
+          const draw = new DrawConstructor({
+            displayControlsDefault: false,
+            controls: {
+              polygon: true,
+              trash: true,
+            },
+            defaultMode: 'simple_select',
+          });
 
-    map.addControl(draw as unknown as maplibregl.IControl, 'top-right');
-    drawRef.current = draw;
-    mapRef.current = map;
+          map.addControl(draw, 'top-right');
+          drawRef.current = draw;
 
-    (map as any).on('draw.create', (e: any) => {
-      const feature = e.features[0];
-      if (feature) {
-        setDrawnPolygon(feature);
-        setIsDrawingMode(false);
+          map.on('draw.create', (e: any) => {
+            const feature = e.features && e.features[0];
+            if (feature) {
+              setDrawnPolygon(feature);
+              setIsDrawingMode(false);
+            }
+          });
+        }
+      } catch (drawErr) {
+        console.warn('[MapboxViewer] MapboxDraw init warning:', drawErr);
       }
-    });
 
-    map.on('load', () => {
-      map.resize();
-      syncSiteLayers();
-    });
+      mapRef.current = map;
 
-    map.on('style.load', () => {
-      syncSiteLayers();
-    });
+      map.on('load', () => {
+        map.resize();
+        syncSiteLayers();
+      });
 
-    // Ensure resize on container layout adjustments
-    const resizeTimer = setTimeout(() => {
-      map.resize();
-    }, 300);
+      map.on('style.load', () => {
+        syncSiteLayers();
+      });
 
-    return () => {
-      clearTimeout(resizeTimer);
-      map.remove();
-    };
+      const resizeTimer = setTimeout(() => {
+        map.resize();
+      }, 300);
+
+      return () => {
+        clearTimeout(resizeTimer);
+        map.remove();
+      };
+    } catch (err: any) {
+      console.error('[MapboxViewer] Map init error:', err);
+      setMapError(err?.message || 'Failed to initialize WebGL map');
+    }
   }, []);
 
   // Update base style
@@ -304,10 +327,14 @@ export const MapboxViewer: React.FC = () => {
   // Toggle Draw Mode
   useEffect(() => {
     if (!drawRef.current) return;
-    if (isDrawingMode) {
-      drawRef.current.changeMode('draw_polygon');
-    } else {
-      drawRef.current.changeMode('simple_select');
+    try {
+      if (isDrawingMode) {
+        drawRef.current.changeMode('draw_polygon');
+      } else {
+        drawRef.current.changeMode('simple_select');
+      }
+    } catch {
+      // safe fallback
     }
   }, [isDrawingMode]);
 
@@ -321,14 +348,18 @@ export const MapboxViewer: React.FC = () => {
   // Handle FlyTo transitions
   useEffect(() => {
     if (mapRef.current && flyToLocation) {
-      mapRef.current.flyTo({
-        center: [flyToLocation.lng, flyToLocation.lat],
-        zoom: flyToLocation.zoom || 13,
-        pitch: 45,
-        bearing: 15,
-        essential: true,
-        duration: 2000,
-      });
+      try {
+        mapRef.current.flyTo({
+          center: [flyToLocation.lng, flyToLocation.lat],
+          zoom: flyToLocation.zoom || 13,
+          pitch: 45,
+          bearing: 15,
+          essential: true,
+          duration: 2000,
+        });
+      } catch {
+        // safe fallback
+      }
     }
   }, [flyToLocation]);
 
@@ -336,6 +367,21 @@ export const MapboxViewer: React.FC = () => {
     <div className="relative w-full h-full bg-carbon-950">
       {/* Map Canvas */}
       <div ref={mapContainerRef} className="w-full h-full" />
+
+      {/* Map Error Fallback Badge */}
+      {mapError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-carbon-950/80 z-20 p-6">
+          <div className="p-6 rounded-2xl bg-carbon-900 border border-amber-500/40 text-center max-w-md space-y-3 shadow-2xl">
+            <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto" />
+            <h3 className="text-sm font-semibold text-white">Geospatial WebGL Notice</h3>
+            <p className="text-xs text-slate-400">{mapError}</p>
+            <p className="text-[11px] text-slate-500">
+              Ensure hardware acceleration / WebGL is enabled in your browser. All analytics and
+              project cards remain fully functional.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Layer Style Switcher Widget */}
       <div className="absolute top-4 left-4 z-10 space-y-2">
@@ -433,7 +479,7 @@ export const MapboxViewer: React.FC = () => {
 
       {/* Legend & Projection pill */}
       <div className="absolute bottom-6 right-4 z-10 hidden md:flex items-center space-x-4 px-3 py-1.5 rounded-lg bg-carbon-900/85 backdrop-blur-md border border-slate-800 text-[11px] text-slate-300 shadow-lg">
-        <span className="text-slate-400">Engine: WebGL Geospatial (EPSG:4326)</span>
+        <span className="text-slate-400">Projection: EPSG:4326 (WGS84)</span>
         <span className="text-slate-700">|</span>
         <div className="flex items-center space-x-3">
           <span className="flex items-center space-x-1">
