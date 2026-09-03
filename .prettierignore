@@ -1,0 +1,8 @@
+node_modules
+dist
+build
+.husky
+.venv
+__pycache__
+*.min.js
+*.min.css

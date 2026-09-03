@@ -1,0 +1,23 @@
+{
+  "name": "darukaa-earth-monorepo",
+  "version": "1.0.0",
+  "description": "Darukaa.Earth - Geospatial Data Analytics Platform for Carbon & Biodiversity Projects",
+  "private": true,
+  "scripts": {
+    "prepare": "husky",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "npm --prefix frontend run lint",
+    "lint:backend": "cd backend && ruff check .",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,md,py}\"",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:frontend": "npm --prefix frontend run build",
+    "test:backend": "cd backend && pytest tests/",
+    "dev": "docker compose up",
+    "dev:build": "docker compose up --build"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
+    "prettier": "^3.5.3"
+  }
+}
