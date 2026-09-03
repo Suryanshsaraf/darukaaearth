@@ -7,12 +7,9 @@ import {
   BookOpen,
   Calendar,
   CheckCircle2,
-  Compass,
-  FileSpreadsheet,
   Layers,
   Leaf,
   ShieldCheck,
-  TrendingUp,
   X,
 } from 'lucide-react';
 import { analyticsApi } from '../../services/api';
@@ -23,7 +20,9 @@ export const SiteAnalyticsDrawer: React.FC = () => {
   const { selectedSiteId, setSelectedSiteId } = useProjects();
   const [data, setData] = useState<SiteAnalyticsResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'carbon' | 'vegetation' | 'biodiversity' | 'methodology'>('carbon');
+  const [activeTab, setActiveTab] = useState<
+    'carbon' | 'vegetation' | 'biodiversity' | 'methodology'
+  >('carbon');
 
   useEffect(() => {
     if (!selectedSiteId) {
@@ -255,7 +254,9 @@ export const SiteAnalyticsDrawer: React.FC = () => {
           <div className="flex items-center space-x-3 text-xs text-slate-400">
             <span className="flex items-center space-x-1">
               <Layers className="w-3.5 h-3.5 text-teal-400" />
-              <strong className="font-mono text-teal-300">{data?.area_hectares.toFixed(1)} ha</strong>
+              <strong className="font-mono text-teal-300">
+                {data?.area_hectares.toFixed(1)} ha
+              </strong>
             </span>
             <span>•</span>
             <span className="flex items-center space-x-1">
@@ -440,8 +441,9 @@ export const SiteAnalyticsDrawer: React.FC = () => {
                   </div>
                   <HighchartsReact highcharts={Highcharts} options={vegetationChartOptions} />
                   <p className="text-[11px] text-slate-400 mt-3 italic">
-                    Reflects typical South Asian monsoonal surges (July-October crest) and pre-monsoon
-                    dry foliage phases (April-May), coupled with steady canopy cover expansion.
+                    Reflects typical South Asian monsoonal surges (July-October crest) and
+                    pre-monsoon dry foliage phases (April-May), coupled with steady canopy cover
+                    expansion.
                   </p>
                 </div>
               )}
@@ -456,8 +458,9 @@ export const SiteAnalyticsDrawer: React.FC = () => {
                   </div>
                   <HighchartsReact highcharts={Highcharts} options={biodiversityChartOptions} />
                   <p className="text-[11px] text-slate-400 mt-3 italic">
-                    Shannon-Wiener index quantifies species evenness and richness. An increase towards
-                    3.5+ signifies recovery of native ecological understory and faunal diversity.
+                    Shannon-Wiener index quantifies species evenness and richness. An increase
+                    towards 3.5+ signifies recovery of native ecological understory and faunal
+                    diversity.
                   </p>
                 </div>
               )}

@@ -1,14 +1,5 @@
 import React, { useState } from 'react';
-import {
-  ChevronRight,
-  Filter,
-  MapPin,
-  Search,
-  SlidersHorizontal,
-  Trash2,
-  TreePine,
-  Sparkles,
-} from 'lucide-react';
+import { ChevronRight, Filter, MapPin, Search, Trash2, TreePine } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 import { projectsApi, sitesApi } from '../../services/api';
 
@@ -106,7 +97,10 @@ export const ProjectSidebar: React.FC = () => {
             if (!currentProj) return null;
             const pct = Math.min(
               100,
-              Math.round((currentProj.current_carbon_stock_tco2e / (currentProj.target_carbon_tco2e || 1)) * 100)
+              Math.round(
+                (currentProj.current_carbon_stock_tco2e / (currentProj.target_carbon_tco2e || 1)) *
+                  100
+              )
             );
             return (
               <div className="space-y-2">
@@ -122,9 +116,7 @@ export const ProjectSidebar: React.FC = () => {
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <p className="text-[11px] text-slate-400 line-clamp-2">
-                  {currentProj.description}
-                </p>
+                <p className="text-[11px] text-slate-400 line-clamp-2">{currentProj.description}</p>
                 <div>
                   <div className="flex justify-between text-[10px] text-slate-400 mb-1">
                     <span>Target: {currentProj.target_carbon_tco2e.toLocaleString()} tCO₂e</span>
@@ -164,9 +156,7 @@ export const ProjectSidebar: React.FC = () => {
                   triggerFlyTo(site.centroid_lng, site.centroid_lat, 13);
                 }}
                 className={`p-3.5 cursor-pointer transition-all hover:bg-carbon-850/80 ${
-                  isSelected
-                    ? 'bg-emerald-950/40 border-l-4 border-emerald-400'
-                    : 'bg-transparent'
+                  isSelected ? 'bg-emerald-950/40 border-l-4 border-emerald-400' : 'bg-transparent'
                 }`}
               >
                 <div className="flex items-start justify-between">
@@ -203,7 +193,9 @@ export const ProjectSidebar: React.FC = () => {
                   <div className="bg-carbon-950/60 rounded px-1.5 py-1 text-center">
                     <span className="text-slate-500 block">Carbon</span>
                     <span className="font-mono font-semibold text-emerald-400">
-                      {site.current_carbon_tco2e ? `${Math.round(site.current_carbon_tco2e)}t` : '—'}
+                      {site.current_carbon_tco2e
+                        ? `${Math.round(site.current_carbon_tco2e)}t`
+                        : '—'}
                     </span>
                   </div>
                   <div className="bg-carbon-950/60 rounded px-1.5 py-1 text-center">

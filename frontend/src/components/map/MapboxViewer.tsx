@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
-import { Layers, Maximize2, Sparkles } from 'lucide-react';
+import { Layers, Sparkles } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 
 // Default Mapbox public token
@@ -24,7 +24,6 @@ export const MapboxViewer: React.FC = () => {
 
   const {
     sites,
-    selectedSiteId,
     setSelectedSiteId,
     flyToLocation,
     isDrawingMode,
@@ -103,33 +102,35 @@ export const MapboxViewer: React.FC = () => {
 
     const updateLayers = () => {
       // Build GeoJSON features collection from sites
-      const features = sites.map((site) => {
-        let geometry = site.geojson;
-        if (typeof geometry === 'string') {
-          try {
-            geometry = JSON.parse(geometry);
-          } catch {
-            geometry = null;
+      const features = sites
+        .map((site) => {
+          let geometry = site.geojson;
+          if (typeof geometry === 'string') {
+            try {
+              geometry = JSON.parse(geometry);
+            } catch {
+              geometry = null;
+            }
           }
-        }
-        if (geometry?.type === 'Feature') {
-          geometry = geometry.geometry;
-        }
+          if (geometry?.type === 'Feature') {
+            geometry = geometry.geometry;
+          }
 
-        return {
-          type: 'Feature',
-          id: site.id,
-          geometry,
-          properties: {
+          return {
+            type: 'Feature',
             id: site.id,
-            name: site.name,
-            habitat_type: site.habitat_type,
-            area_hectares: site.area_hectares,
-            carbon: site.current_carbon_tco2e || 0,
-            ndvi: site.latest_ndvi || 0,
-          },
-        };
-      }).filter((f) => f.geometry);
+            geometry,
+            properties: {
+              id: site.id,
+              name: site.name,
+              habitat_type: site.habitat_type,
+              area_hectares: site.area_hectares,
+              carbon: site.current_carbon_tco2e || 0,
+              ndvi: site.latest_ndvi || 0,
+            },
+          };
+        })
+        .filter((f) => f.geometry);
 
       const sourceData: any = {
         type: 'FeatureCollection',
