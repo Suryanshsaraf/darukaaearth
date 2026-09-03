@@ -8,7 +8,8 @@
 [![Highcharts](https://img.shields.io/badge/Charting-Highcharts%20Core-6B32A8.svg?style=flat)](https://highcharts.com)
 [![Pre-commit](https://img.shields.io/badge/Code%20Quality-Husky%20%2B%20lint--staged-blueviolet.svg?style=flat)](https://typicode.github.io/husky)
 
-[![GitHub Pages](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-success?style=for-the-badge&logo=github)](https://suryanshsaraf.github.io/darukaaearth/)
+[![Vercel Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel%20Production-black?style=for-the-badge&logo=vercel)](https://darukaaearth-dashboard.vercel.app)
+[![GitHub Pages](https://img.shields.io/badge/Mirror-GitHub%20Pages-success?style=for-the-badge&logo=github)](https://suryanshsaraf.github.io/darukaaearth/)
 
 > **Darukaa.Earth** is a full-stack, geospatial data analytics platform built for environmental administrators, carbon credit project developers, and conservation scientists to monitor, evaluate, and verify nature-based carbon sequestration and biodiversity recovery projects across India and the Global South.
 
@@ -16,9 +17,10 @@
 
 ### 🌐 Live Production Demo
 
-- 🔗 **Public Live Demo Link:** **[https://suryanshsaraf.github.io/darukaaearth/](https://suryanshsaraf.github.io/darukaaearth/)**
+- 🔗 **Primary Vercel Live URL:** **[https://darukaaearth-dashboard.vercel.app](https://darukaaearth-dashboard.vercel.app)**
+- 🔗 **Backup Mirror (GitHub Pages):** **[https://suryanshsaraf.github.io/darukaaearth/](https://suryanshsaraf.github.io/darukaaearth/)**
 - 🔑 **Instant One-Click Demo Access:** Open the link and click **"Instant Demo Sign-In"** on the top right (pre-filled with `admin@darukaa.earth` / `admin123456`).
-- ⚡ **Resilient Hybrid Architecture:** Deployed live with automated GitHub Actions CI/CD; works seamlessly with interactive Mapbox GL 3D maps, polygon boundary drawing, and Highcharts time-series analytics.
+- ⚡ **Zero-Friction Cloud Deployment:** Deployed on Vercel Edge Network with sub-100ms global latency, interactive 3D satellite mapping, polygon drawing, and Highcharts time-series analytics.
 
 ---
 
