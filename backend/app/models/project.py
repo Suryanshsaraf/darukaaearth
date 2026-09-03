@@ -1,7 +1,9 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 from sqlalchemy import Column, DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.orm import relationship
+
 from app.db.base import Base
 
 
@@ -21,7 +23,7 @@ class Project(Base):
     target_carbon_tco2e = Column(Float, default=10000.0, nullable=False)
     status = Column(String(50), default="Active", nullable=False)
     country = Column(String(100), default="India", nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
 
     owner = relationship("User", back_populates="projects")
     sites = relationship("Site", back_populates="project", cascade="all, delete-orphan")

@@ -14,6 +14,7 @@ select = [
 ignore = [
     "E501", # line length handled by formatter
     "B008", # do not perform function calls in argument defaults (standard for FastAPI Depends)
+    "E402", # module level import not at top of file (needed for test env setup)
 ]
 
 [lint.isort]

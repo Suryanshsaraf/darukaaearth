@@ -1,9 +1,8 @@
 import math
-from datetime import date, timedelta
-from typing import Any, Dict, List
+from datetime import date
+
 from app.models.metric import SiteMetric
 from app.schemas.metric import KPISummary, MetricRecord, SiteAnalyticsResponse
-
 
 HABITAT_PROFILES = {
     "Mangrove / Blue Carbon": {
@@ -70,7 +69,7 @@ class AnalyticsService:
         habitat_type: str,
         established_year: int,
         months_count: int = 36,
-    ) -> List[SiteMetric]:
+    ) -> list[SiteMetric]:
         """
         Generates 36 months of continuous, statistically rigorous time-series
         modeling Sentinel-2 seasonal NDVI passes, GEDI allometric carbon accumulation,
@@ -88,7 +87,7 @@ class AnalyticsService:
         start_year = today.year - (months_count // 12)
         start_month = today.month
 
-        metrics: List[SiteMetric] = []
+        metrics: list[SiteMetric] = []
 
         for i in range(months_count):
             month_idx = (start_month + i - 1) % 12 + 1
@@ -100,24 +99,42 @@ class AnalyticsService:
             elapsed_years = i / 12.0
 
             # Carbon Stock: base + cumulative growth with diminishing allometric factor
-            density_at_t = base_density + (growth_velocity * elapsed_years * (1.0 + 0.05 * math.log(1 + elapsed_years)))
+            density_at_t = base_density + (
+                growth_velocity * elapsed_years * (1.0 + 0.05 * math.log(1 + elapsed_years))
+            )
             total_carbon = round(density_at_t * effective_area, 2)
             seq_rate = round(growth_velocity * effective_area * (1.0 + 0.1 * math.sin(i * 0.5)), 2)
 
             # Seasonal NDVI oscillation: peaks in Aug-Oct (monsoon), drops in April-May (dry)
             # month 8 (August) ~ phase peak
             seasonal_phase = (month_idx - 8) * (2 * math.pi / 12)
-            seasonal_ndvi = profile["base_ndvi"] + profile["ndvi_seasonal_amp"] * math.cos(seasonal_phase)
+            seasonal_ndvi = profile["base_ndvi"] + profile["ndvi_seasonal_amp"] * math.cos(
+                seasonal_phase
+            )
             # Long-term slight greening trend (+0.01 per year)
             greening = 0.012 * elapsed_years
             ndvi_val = round(min(0.92, max(0.20, seasonal_ndvi + greening)), 3)
 
             # Canopy cover percentage
-            canopy_val = round(min(95.0, profile["canopy_cover_base"] + (elapsed_years * 2.5) + (ndvi_val * 10 - 5)), 1)
+            canopy_val = round(
+                min(
+                    95.0, profile["canopy_cover_base"] + (elapsed_years * 2.5) + (ndvi_val * 10 - 5)
+                ),
+                1,
+            )
 
             # Biodiversity: Shannon index improves as habitat matures
-            shannon_val = round(min(4.2, profile["shannon_base"] + 0.08 * elapsed_years + (0.05 * math.sin(i * 0.4))), 2)
-            species_richness = int(profile["species_richness_base"] + int(elapsed_years * 5) + int(3 * math.sin(i * 0.3)))
+            shannon_val = round(
+                min(
+                    4.2, profile["shannon_base"] + 0.08 * elapsed_years + (0.05 * math.sin(i * 0.4))
+                ),
+                2,
+            )
+            species_richness = int(
+                profile["species_richness_base"]
+                + int(elapsed_years * 5)
+                + int(3 * math.sin(i * 0.3))
+            )
 
             # Soil Organic Carbon (g/kg) - gradual soil enrichment
             soil_carbon = round(profile["soil_carbon_base"] + (elapsed_years * 0.8), 2)
@@ -146,7 +163,7 @@ class AnalyticsService:
         habitat_type: str,
         area_hectares: float,
         established_year: int,
-        metrics: List[SiteMetric],
+        metrics: list[SiteMetric],
     ) -> SiteAnalyticsResponse:
         """Transforms DB metric records into high-performance Highcharts series and KPI cards."""
         if not metrics:
@@ -197,11 +214,9 @@ class AnalyticsService:
 
         history_records = []
         for m in metrics:
-            timestamp_ms = int(
-                m.record_date.strftime("%s")
-            ) * 1000 if hasattr(m.record_date, "strftime") else 0
-            # KaTeX / JS epoch time
+            # Epoch milliseconds for Highcharts datetime axis
             import calendar
+
             ts = calendar.timegm(m.record_date.timetuple()) * 1000
 
             carbon_stock_series.append([ts, m.carbon_stock_tco2e])

@@ -1,18 +1,15 @@
 import os
+from contextlib import asynccontextmanager
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-# Set test environment
+# Ensure SQLite test environment before importing app or config
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["SECRET_KEY"] = "test_secret_key_environment_for_unit_tests_32_chars"
-
-from app.api.deps import get_db
-from app.core.security import create_access_token, get_password_hash
-from app.db.base import Base
-from app.main import app
-from app.models.user import User
 
 # SQLite in-memory test engine
 TEST_DATABASE_URL = "sqlite:///:memory:"
@@ -22,6 +19,26 @@ test_engine = create_engine(
     poolclass=StaticPool,
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+import app.db.session
+
+app.db.session.engine = test_engine
+app.db.session.SessionLocal = TestingSessionLocal
+
+from app.api.deps import get_db
+from app.core.security import create_access_token, get_password_hash
+from app.db.base import Base
+from app.main import app
+from app.models.user import User
+
+
+# In unit tests, disable default production lifespan to prevent duplicate seeding
+@asynccontextmanager
+async def noop_lifespan(app):
+    yield
+
+
+app.router.lifespan_context = noop_lifespan
 
 
 @pytest.fixture(scope="function")

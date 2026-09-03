@@ -1,7 +1,9 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 from sqlalchemy import Boolean, Column, DateTime, String
 from sqlalchemy.orm import relationship
+
 from app.db.base import Base
 
 
@@ -14,6 +16,6 @@ class User(Base):
     full_name = Column(String(255), nullable=True)
     role = Column(String(50), default="admin", nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
 
     projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")

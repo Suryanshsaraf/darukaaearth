@@ -1,16 +1,8 @@
 {
-  "frontend/**/*.{ts,tsx,js,jsx}": [
-    "prettier --write",
-    "npm --prefix frontend run lint"
-  ],
-  "frontend/**/*.{css,json,md}": [
-    "prettier --write"
-  ],
+  "frontend/**/*.{ts,tsx,js,jsx}": ["prettier --write", "npm --prefix frontend run lint"],
+  "frontend/**/*.{css,json,md}": ["prettier --write"],
   "backend/**/*.py": [
-    "ruff check --fix",
-    "ruff format"
+    "sh -c 'if [ -x backend/venv/bin/ruff ]; then backend/venv/bin/ruff check --fix \"$@\" && backend/venv/bin/ruff format \"$@\"; else ruff check --fix \"$@\" && ruff format \"$@\"; fi' --"
   ],
-  "*.{md,json,yml,yaml}": [
-    "prettier --write"
-  ]
+  "*.{md,json,yml,yaml}": ["prettier --write"]
 }

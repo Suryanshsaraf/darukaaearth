@@ -1,5 +1,5 @@
 import json
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from geoalchemy2.shape import from_shape
 from shapely.geometry import shape
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/sites", tags=["Sites & Geospatial"])
 
 @router.get("/geojson", response_model=GeoJSONFeatureCollection)
 def get_all_sites_geojson(
-    project_id: Optional[str] = Query(None, description="Optional project ID filter"),
+    project_id: str | None = Query(None, description="Optional project ID filter"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -51,7 +51,9 @@ def get_all_sites_geojson(
             "established_year": site.established_year,
             "current_carbon_tco2e": latest_metric.carbon_stock_tco2e if latest_metric else 0.0,
             "latest_ndvi": latest_metric.ndvi_index if latest_metric else 0.0,
-            "biodiversity_score": latest_metric.biodiversity_shannon_index if latest_metric else 0.0,
+            "biodiversity_score": latest_metric.biodiversity_shannon_index
+            if latest_metric
+            else 0.0,
         }
 
         features.append(
@@ -66,9 +68,9 @@ def get_all_sites_geojson(
     return GeoJSONFeatureCollection(type="FeatureCollection", features=features)
 
 
-@router.get("/", response_model=List[SiteOut])
+@router.get("/", response_model=list[SiteOut])
 def list_sites(
-    project_id: Optional[str] = Query(None),
+    project_id: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -132,18 +134,25 @@ def create_site_from_polygon(
         raw_geom = SpatialService.extract_geometry(site_in.geojson)
         cleaned_geom, c_lat, c_lng = SpatialService.validate_and_clean_geometry(raw_geom)
     except ValueError as ve:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(ve))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(ve)
+        ) from ve
 
     # 3. Calculate geodesic area in hectares via PostGIS or ellipsoidal formula
     area_ha = SpatialService.calculate_geodesic_area_hectares(db, cleaned_geom)
     if area_ha <= 0.0:
         area_ha = 1.0  # Minimum baseline
 
-    # 4. Prepare GeoAlchemy2 spatial geometry for PostGIS
-    geom_wkt = None
+    # 4. Prepare spatial geometry (GeoAlchemy2 WKBElement for PostGIS, WKT string for SQLite)
+    geom_val = None
     try:
         poly_shape = shape(cleaned_geom)
-        geom_wkt = from_shape(poly_shape, srid=4326)
+        from app.core.config import settings
+
+        if not settings.DATABASE_URL.startswith("sqlite"):
+            geom_val = from_shape(poly_shape, srid=4326)
+        else:
+            geom_val = poly_shape.wkt
     except Exception:
         pass
 
@@ -153,7 +162,7 @@ def create_site_from_polygon(
         name=site_in.name,
         description=site_in.description,
         habitat_type=site_in.habitat_type,
-        geom=geom_wkt,
+        geom=geom_val,
         geojson_str=json.dumps(cleaned_geom),
         area_hectares=area_ha,
         centroid_lat=c_lat,

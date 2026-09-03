@@ -1,4 +1,5 @@
-from typing import Generator
+from collections.abc import Generator
+
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -43,7 +44,7 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:

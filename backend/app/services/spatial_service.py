@@ -1,7 +1,8 @@
 import json
 import math
-from typing import Any, Dict, Tuple
-from shapely.geometry import shape, mapping
+from typing import Any
+
+from shapely.geometry import mapping, shape
 from shapely.validation import make_valid
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -14,7 +15,7 @@ class SpatialService:
     """
 
     @staticmethod
-    def extract_geometry(geojson_input: Dict[str, Any]) -> Dict[str, Any]:
+    def extract_geometry(geojson_input: dict[str, Any]) -> dict[str, Any]:
         """Extracts geometry dictionary whether input is a Feature or raw Geometry."""
         if not isinstance(geojson_input, dict):
             raise ValueError("Invalid GeoJSON: must be a JSON dictionary")
@@ -34,7 +35,9 @@ class SpatialService:
         )
 
     @staticmethod
-    def validate_and_clean_geometry(geom_dict: Dict[str, Any]) -> Tuple[Dict[str, Any], float, float]:
+    def validate_and_clean_geometry(
+        geom_dict: dict[str, Any],
+    ) -> tuple[dict[str, Any], float, float]:
         """
         Validates the polygon using Shapely, fixes self-intersections with make_valid,
         and extracts the centroid (lat, lng).
@@ -42,7 +45,7 @@ class SpatialService:
         try:
             poly = shape(geom_dict)
         except Exception as e:
-            raise ValueError(f"Malformed geometry coordinates: {str(e)}")
+            raise ValueError(f"Malformed geometry coordinates: {str(e)}") from e
 
         if not poly.is_valid:
             poly = make_valid(poly)
@@ -55,9 +58,7 @@ class SpatialService:
         return cleaned_dict, centroid_lat, centroid_lng
 
     @classmethod
-    def calculate_geodesic_area_hectares(
-        cls, db: Session, geom_dict: Dict[str, Any]
-    ) -> float:
+    def calculate_geodesic_area_hectares(cls, db: Session, geom_dict: dict[str, Any]) -> float:
         """
         Calculates exact geodetic surface area in hectares.
         Uses PostgreSQL PostGIS ST_Area(geom::geography) if available;
@@ -82,7 +83,7 @@ class SpatialService:
         return cls._calculate_python_geodesic_area(geom_dict)
 
     @staticmethod
-    def _calculate_python_geodesic_area(geom_dict: Dict[str, Any]) -> float:
+    def _calculate_python_geodesic_area(geom_dict: dict[str, Any]) -> float:
         """
         Computes spherical geodesic area on WGS84 earth model in hectares.
         R = 6378137 meters.

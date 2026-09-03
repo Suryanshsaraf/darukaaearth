@@ -1,11 +1,11 @@
 from datetime import datetime
-from typing import List, Optional
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ProjectBase(BaseModel):
     name: str = Field(..., min_length=2, max_length=255)
-    description: Optional[str] = None
+    description: str | None = None
     project_type: str = "Reforestation"
     target_carbon_tco2e: float = Field(default=10000.0, ge=0.0)
     status: str = "Active"
@@ -17,12 +17,12 @@ class ProjectCreate(ProjectBase):
 
 
 class ProjectUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    project_type: Optional[str] = None
-    target_carbon_tco2e: Optional[float] = None
-    status: Optional[str] = None
-    country: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
+    project_type: str | None = None
+    target_carbon_tco2e: float | None = None
+    status: str | None = None
+    country: str | None = None
 
 
 class ProjectOut(ProjectBase):
@@ -33,8 +33,7 @@ class ProjectOut(ProjectBase):
     total_area_hectares: float = 0.0
     current_carbon_stock_tco2e: float = 0.0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SiteBrief(BaseModel):
@@ -45,9 +44,8 @@ class SiteBrief(BaseModel):
     centroid_lng: float
     habitat_type: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProjectDetail(ProjectOut):
-    sites: List[SiteBrief] = []
+    sites: list[SiteBrief] = []

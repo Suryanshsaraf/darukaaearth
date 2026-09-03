@@ -1,4 +1,5 @@
-from typing import Any, Dict
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -12,7 +13,7 @@ from app.services.analytics_service import AnalyticsService
 router = APIRouter(prefix="/analytics", tags=["Analytics & MRV"])
 
 
-@router.get("/portfolio/overview", response_model=Dict[str, Any])
+@router.get("/portfolio/overview", response_model=dict[str, Any])
 def get_portfolio_overview(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

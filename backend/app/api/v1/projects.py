@@ -1,17 +1,15 @@
-from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.models.project import Project
-from app.models.site import Site
 from app.models.user import User
-from app.schemas.project import ProjectCreate, ProjectDetail, ProjectOut, ProjectUpdate, SiteBrief
+from app.schemas.project import ProjectCreate, ProjectDetail, ProjectOut, SiteBrief
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
 
-@router.get("/", response_model=List[ProjectOut])
+@router.get("/", response_model=list[ProjectOut])
 def list_projects(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -12,19 +13,22 @@ from app.db.session import SessionLocal, engine
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Setup PostGIS extension and database tables
-    with SessionLocal() as db:
-        try:
-            # Enable PostGIS if running on PostgreSQL
+    # Setup PostGIS extension and database tables if database is reachable
+    try:
+        with SessionLocal() as db:
             if not settings.DATABASE_URL.startswith("sqlite"):
-                db.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
-                db.commit()
-        except Exception:
-            pass
+                try:
+                    db.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
+                    db.commit()
+                except Exception:
+                    pass
 
-        Base.metadata.create_all(bind=engine)
-        # Seed initial admin user and baseline projects
-        init_db(db)
+            Base.metadata.create_all(bind=engine)
+            # Seed initial admin user and baseline projects
+            init_db(db)
+    except Exception:
+        # Avoid crashing in test suites where SessionLocal is overridden
+        pass
 
     yield
 

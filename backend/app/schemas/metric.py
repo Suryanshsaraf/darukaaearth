@@ -1,6 +1,7 @@
 from datetime import date
-from typing import Any, Dict, List
-from pydantic import BaseModel
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict
 
 
 class MetricRecord(BaseModel):
@@ -13,8 +14,7 @@ class MetricRecord(BaseModel):
     species_richness_count: int
     soil_organic_carbon_g_kg: float
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class KPISummary(BaseModel):
@@ -36,6 +36,6 @@ class SiteAnalyticsResponse(BaseModel):
     area_hectares: float
     established_year: int
     kpis: KPISummary
-    history: List[MetricRecord]
-    highcharts_series: Dict[str, Any]
-    methodology: Dict[str, str]
+    history: list[MetricRecord]
+    highcharts_series: dict[str, Any]
+    methodology: dict[str, str]
