@@ -1,20 +1,104 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
-import { Layers, Sparkles } from 'lucide-react';
+import { Layers, Sparkles, Key, Check } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 
-// Default Mapbox public token
-const MAPBOX_TOKEN =
+// Safe fallback token for Mapbox GL JS initialization
+mapboxgl.accessToken =
+  localStorage.getItem('darukaa_custom_mapbox_token') ||
   import.meta.env.VITE_MAPBOX_TOKEN ||
   'pk.eyJ1Ijoic3VyeWFuc2hzYXJhZiIsImEiOiJjbTdtOGUxdXowMWdsMm5zYWdtOWlhMG5yIn0.rT_k8G8Q8K23q';
 
-mapboxgl.accessToken = MAPBOX_TOKEN;
+// 100% Reliable High-Resolution Map Styles (Zero Token Dependency + Mapbox Vector Option)
+const BASE_STYLES: Record<string, any> = {
+  'satellite-streets': {
+    version: 8,
+    sources: {
+      'esri-satellite': {
+        type: 'raster',
+        tiles: [
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        ],
+        tileSize: 256,
+        attribution: '&copy; Esri World Imagery & Earth Observation',
+      },
+      'carto-labels': {
+        type: 'raster',
+        tiles: [
+          'https://a.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}@2x.png',
+          'https://b.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}@2x.png',
+        ],
+        tileSize: 256,
+      },
+    },
+    layers: [
+      {
+        id: 'esri-sat-layer',
+        type: 'raster',
+        source: 'esri-satellite',
+        minzoom: 0,
+        maxzoom: 19,
+      },
+      {
+        id: 'carto-labels-layer',
+        type: 'raster',
+        source: 'carto-labels',
+        minzoom: 0,
+        maxzoom: 20,
+      },
+    ],
+  },
+  'dark-analytics': {
+    version: 8,
+    sources: {
+      'carto-dark': {
+        type: 'raster',
+        tiles: [
+          'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+          'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+          'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        ],
+        tileSize: 256,
+        attribution: '&copy; CARTO Dark Matter',
+      },
+    },
+    layers: [
+      {
+        id: 'carto-dark-layer',
+        type: 'raster',
+        source: 'carto-dark',
+        minzoom: 0,
+        maxzoom: 20,
+      },
+    ],
+  },
+  'outdoors-terrain': {
+    version: 8,
+    sources: {
+      'osm-terrain': {
+        type: 'raster',
+        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        attribution: '&copy; OpenStreetMap contributors',
+      },
+    },
+    layers: [
+      {
+        id: 'osm-layer',
+        type: 'raster',
+        source: 'osm-terrain',
+        minzoom: 0,
+        maxzoom: 19,
+      },
+    ],
+  },
+};
 
-const MAP_STYLES = [
-  { id: 'satellite-streets-v12', name: 'Satellite Imagery', icon: '🛰️' },
-  { id: 'dark-v11', name: 'Dark Analytics', icon: '🌑' },
-  { id: 'outdoors-v12', name: 'Topographic Terrain', icon: '⛰️' },
+const STYLE_MENU_ITEMS = [
+  { id: 'satellite-streets', name: 'Satellite Imagery', icon: '🛰️' },
+  { id: 'dark-analytics', name: 'Dark Analytics', icon: '🌑' },
+  { id: 'outdoors-terrain', name: 'Topographic Terrain', icon: '⛰️' },
 ];
 
 export const MapboxViewer: React.FC = () => {
@@ -31,19 +115,129 @@ export const MapboxViewer: React.FC = () => {
     setDrawnPolygon,
   } = useProjects();
 
-  const [currentStyle, setCurrentStyle] = useState<string>('satellite-streets-v12');
+  const [currentStyleId, setCurrentStyleId] = useState<string>('satellite-streets');
   const [showStyleMenu, setShowStyleMenu] = useState<boolean>(false);
+  const [customToken, setCustomToken] = useState<string>(
+    localStorage.getItem('darukaa_custom_mapbox_token') || ''
+  );
+  const [showTokenInput, setShowTokenInput] = useState<boolean>(false);
+  const [tokenSaved, setTokenSaved] = useState<boolean>(false);
 
-  // Initialize Map
+  // Function to bind site polygon layers onto the active map style
+  const syncSiteLayers = () => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const features = sites
+      .map((site) => {
+        let geometry = site.geojson;
+        if (typeof geometry === 'string') {
+          try {
+            geometry = JSON.parse(geometry);
+          } catch {
+            geometry = null;
+          }
+        }
+        if (geometry?.type === 'Feature') {
+          geometry = geometry.geometry;
+        }
+
+        return {
+          type: 'Feature' as const,
+          id: site.id,
+          geometry,
+          properties: {
+            id: site.id,
+            name: site.name,
+            habitat_type: site.habitat_type,
+            area_hectares: site.area_hectares,
+            carbon: site.current_carbon_tco2e || 0,
+            ndvi: site.latest_ndvi || 0,
+          },
+        };
+      })
+      .filter((f) => f.geometry);
+
+    const sourceData: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: features as any,
+    };
+
+    if (map.getSource('sites-source')) {
+      (map.getSource('sites-source') as mapboxgl.GeoJSONSource).setData(sourceData);
+    } else {
+      map.addSource('sites-source', {
+        type: 'geojson',
+        data: sourceData,
+      });
+
+      // Polygon Fill Layer
+      map.addLayer({
+        id: 'sites-fill',
+        type: 'fill',
+        source: 'sites-source',
+        paint: {
+          'fill-color': [
+            'match',
+            ['get', 'habitat_type'],
+            'Mangrove / Blue Carbon',
+            '#06b6d4', // Cyan
+            'Tropical Moist Deciduous',
+            '#10b981', // Emerald
+            'Agroforestry',
+            '#84cc16', // Lime
+            'Peatland / Wetland',
+            '#3b82f6', // Blue
+            '#f59e0b', // Amber default
+          ],
+          'fill-opacity': 0.6,
+        },
+      });
+
+      // Polygon Glowing Outline Layer
+      map.addLayer({
+        id: 'sites-line',
+        type: 'line',
+        source: 'sites-source',
+        paint: {
+          'line-color': '#34d399',
+          'line-width': 2.5,
+          'line-opacity': 0.95,
+        },
+      });
+
+      // Click event on polygons
+      map.on('click', 'sites-fill', (e) => {
+        if (e.features && e.features[0]) {
+          const siteId = e.features[0].properties?.id;
+          if (siteId) {
+            setSelectedSiteId(siteId);
+          }
+        }
+      });
+
+      map.on('mouseenter', 'sites-fill', () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
+
+      map.on('mouseleave', 'sites-fill', () => {
+        map.getCanvas().style.cursor = '';
+      });
+    }
+  };
+
+  // Initialize Mapbox Instance
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
+    const initialStyle = BASE_STYLES[currentStyleId] || BASE_STYLES['satellite-streets'];
+
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: `mapbox://styles/mapbox/${currentStyle}`,
+      style: initialStyle,
       center: [78.9629, 20.5937], // Center of India
       zoom: 4.8,
-      pitch: 30,
+      pitch: 25,
     });
 
     map.addControl(new mapboxgl.NavigationControl(), 'top-right');
@@ -71,21 +265,50 @@ export const MapboxViewer: React.FC = () => {
       }
     });
 
+    map.on('load', () => {
+      map.resize();
+      syncSiteLayers();
+    });
+
+    map.on('style.load', () => {
+      syncSiteLayers();
+    });
+
+    // Ensure resize on container layout adjustments
+    const resizeTimer = setTimeout(() => {
+      map.resize();
+    }, 400);
+
     return () => {
+      clearTimeout(resizeTimer);
       map.remove();
     };
   }, []);
 
-  // Switch Base Style
+  // Update base style
   const handleStyleChange = (styleId: string) => {
-    setCurrentStyle(styleId);
+    setCurrentStyleId(styleId);
     setShowStyleMenu(false);
-    if (mapRef.current) {
-      mapRef.current.setStyle(`mapbox://styles/mapbox/${styleId}`);
+    if (mapRef.current && BASE_STYLES[styleId]) {
+      mapRef.current.setStyle(BASE_STYLES[styleId]);
     }
   };
 
-  // Toggle Mapbox Draw Mode
+  // Save custom Mapbox token if entered
+  const handleSaveToken = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customToken.trim()) return;
+    localStorage.setItem('darukaa_custom_mapbox_token', customToken.trim());
+    mapboxgl.accessToken = customToken.trim();
+    setTokenSaved(true);
+    setTimeout(() => {
+      setTokenSaved(false);
+      setShowTokenInput(false);
+      window.location.reload();
+    }, 800);
+  };
+
+  // Toggle Draw Mode
   useEffect(() => {
     if (!drawRef.current) return;
     if (isDrawingMode) {
@@ -95,119 +318,14 @@ export const MapboxViewer: React.FC = () => {
     }
   }, [isDrawingMode]);
 
-  // Sync Site Polygons on Map
+  // Sync sites whenever list updates
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    const updateLayers = () => {
-      // Build GeoJSON features collection from sites
-      const features = sites
-        .map((site) => {
-          let geometry = site.geojson;
-          if (typeof geometry === 'string') {
-            try {
-              geometry = JSON.parse(geometry);
-            } catch {
-              geometry = null;
-            }
-          }
-          if (geometry?.type === 'Feature') {
-            geometry = geometry.geometry;
-          }
-
-          return {
-            type: 'Feature',
-            id: site.id,
-            geometry,
-            properties: {
-              id: site.id,
-              name: site.name,
-              habitat_type: site.habitat_type,
-              area_hectares: site.area_hectares,
-              carbon: site.current_carbon_tco2e || 0,
-              ndvi: site.latest_ndvi || 0,
-            },
-          };
-        })
-        .filter((f) => f.geometry);
-
-      const sourceData: any = {
-        type: 'FeatureCollection',
-        features,
-      };
-
-      if (map.getSource('sites-source')) {
-        (map.getSource('sites-source') as mapboxgl.GeoJSONSource).setData(sourceData);
-      } else {
-        map.addSource('sites-source', {
-          type: 'geojson',
-          data: sourceData,
-        });
-
-        // Fill Layer
-        map.addLayer({
-          id: 'sites-fill',
-          type: 'fill',
-          source: 'sites-source',
-          paint: {
-            'fill-color': [
-              'match',
-              ['get', 'habitat_type'],
-              'Mangrove / Blue Carbon',
-              '#06b6d4', // Cyan
-              'Tropical Moist Deciduous',
-              '#10b981', // Emerald
-              'Agroforestry',
-              '#84cc16', // Lime
-              'Peatland / Wetland',
-              '#3b82f6', // Blue
-              '#f59e0b', // Amber default
-            ],
-            'fill-opacity': 0.55,
-          },
-        });
-
-        // Outline Glow Layer
-        map.addLayer({
-          id: 'sites-line',
-          type: 'line',
-          source: 'sites-source',
-          paint: {
-            'line-color': '#34d399',
-            'line-width': 2.5,
-            'line-opacity': 0.9,
-          },
-        });
-
-        // Hover & Click Interactions
-        map.on('click', 'sites-fill', (e) => {
-          if (e.features && e.features[0]) {
-            const siteId = e.features[0].properties?.id;
-            if (siteId) {
-              setSelectedSiteId(siteId);
-            }
-          }
-        });
-
-        map.on('mouseenter', 'sites-fill', () => {
-          map.getCanvas().style.cursor = 'pointer';
-        });
-
-        map.on('mouseleave', 'sites-fill', () => {
-          map.getCanvas().style.cursor = '';
-        });
-      }
-    };
-
-    if (map.isStyleLoaded()) {
-      updateLayers();
-    } else {
-      map.on('style.load', updateLayers);
+    if (mapRef.current) {
+      syncSiteLayers();
     }
-  }, [sites, currentStyle]);
+  }, [sites]);
 
-  // Handle FlyTo
+  // Handle FlyTo transitions
   useEffect(() => {
     if (mapRef.current && flyToLocation) {
       mapRef.current.flyTo({
@@ -222,12 +340,12 @@ export const MapboxViewer: React.FC = () => {
   }, [flyToLocation]);
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full bg-carbon-950">
       {/* Mapbox Canvas */}
       <div ref={mapContainerRef} className="w-full h-full" />
 
-      {/* Layer Style Switcher Floating Widget */}
-      <div className="absolute top-4 left-4 z-10">
+      {/* Layer Style Switcher Widget */}
+      <div className="absolute top-4 left-4 z-10 space-y-2">
         <div className="relative">
           <button
             onClick={() => setShowStyleMenu(!showStyleMenu)}
@@ -238,24 +356,78 @@ export const MapboxViewer: React.FC = () => {
           </button>
 
           {showStyleMenu && (
-            <div className="absolute top-11 left-0 w-52 bg-carbon-900 border border-emerald-900/60 rounded-xl shadow-2xl p-1.5 space-y-1 backdrop-blur-md z-20">
-              {MAP_STYLES.map((style) => (
+            <div className="absolute top-11 left-0 w-56 bg-carbon-900 border border-emerald-900/60 rounded-xl shadow-2xl p-1.5 space-y-1 backdrop-blur-md z-20">
+              {STYLE_MENU_ITEMS.map((item) => (
                 <button
-                  key={style.id}
-                  onClick={() => handleStyleChange(style.id)}
+                  key={item.id}
+                  onClick={() => handleStyleChange(item.id)}
                   className={`w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs transition-colors ${
-                    currentStyle === style.id
+                    currentStyleId === item.id
                       ? 'bg-emerald-950/80 text-emerald-400 font-semibold border border-emerald-800/40'
                       : 'text-slate-300 hover:bg-carbon-800'
                   }`}
                 >
-                  <span className="text-sm">{style.icon}</span>
-                  <span>{style.name}</span>
+                  <span className="text-sm">{item.icon}</span>
+                  <span>{item.name}</span>
                 </button>
               ))}
+
+              <div className="pt-1 border-t border-slate-800">
+                <button
+                  onClick={() => {
+                    setShowStyleMenu(false);
+                    setShowTokenInput(!showTokenInput);
+                  }}
+                  className="w-full flex items-center space-x-2 px-3 py-1.5 rounded-lg text-[11px] text-slate-400 hover:text-emerald-400 hover:bg-carbon-800 transition-colors"
+                >
+                  <Key className="w-3.5 h-3.5" />
+                  <span>Configure Mapbox Token</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
+
+        {/* Optional Custom Token Input Panel */}
+        {showTokenInput && (
+          <div className="w-64 p-3 rounded-xl bg-carbon-900/95 border border-emerald-900/60 backdrop-blur-md shadow-2xl text-xs space-y-2 animate-in fade-in">
+            <div className="flex items-center justify-between text-slate-200 font-semibold">
+              <span>Mapbox Public Token</span>
+              <button
+                onClick={() => setShowTokenInput(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-400 leading-tight">
+              Default uses high-res satellite & carto tiles with zero token errors. You can also
+              paste your own Mapbox token:
+            </p>
+            <form onSubmit={handleSaveToken} className="space-y-2">
+              <input
+                type="text"
+                placeholder="pk.eyJ1Ijo..."
+                value={customToken}
+                onChange={(e) => setCustomToken(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded bg-carbon-850 border border-slate-700 text-slate-100 text-xs font-mono focus:outline-none focus:border-emerald-500"
+              />
+              <button
+                type="submit"
+                className="w-full py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center justify-center space-x-1"
+              >
+                {tokenSaved ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 mr-1" />
+                    <span>Applied!</span>
+                  </>
+                ) : (
+                  <span>Apply Token</span>
+                )}
+              </button>
+            </form>
+          </div>
+        )}
       </div>
 
       {/* Drawing Instructions Alert Badge */}

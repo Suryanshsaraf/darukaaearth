@@ -1,4 +1,4 @@
-import { PortfolioOverview, Project, Site, SiteAnalyticsResponse } from '../types';
+import { Project, Site, SiteAnalyticsResponse } from '../types';
 
 export const INITIAL_PROJECTS: Project[] = [
   {
