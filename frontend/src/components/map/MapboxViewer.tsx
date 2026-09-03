@@ -1,16 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import mapboxgl from 'mapbox-gl';
+import * as maplibregl from 'maplibre-gl';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import { Layers, Sparkles, Key, Check } from 'lucide-react';
 import { useProjects } from '../../context/ProjectContext';
 
-// Safe fallback token for Mapbox GL JS initialization
-mapboxgl.accessToken =
-  localStorage.getItem('darukaa_custom_mapbox_token') ||
-  import.meta.env.VITE_MAPBOX_TOKEN ||
-  'pk.eyJ1Ijoic3VyeWFuc2hzYXJhZiIsImEiOiJjbTdtOGUxdXowMWdsMm5zYWdtOWlhMG5yIn0.rT_k8G8Q8K23q';
-
-// 100% Reliable High-Resolution Map Styles (Zero Token Dependency + Mapbox Vector Option)
+// High-Resolution Geospatial Base Maps (100% Free & Open - Zero Token Blocking)
 const BASE_STYLES: Record<string, any> = {
   'satellite-streets': {
     version: 8,
@@ -103,8 +97,8 @@ const STYLE_MENU_ITEMS = [
 
 export const MapboxViewer: React.FC = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const drawRef = useRef<MapboxDraw | null>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const drawRef = useRef<any | null>(null);
 
   const {
     sites,
@@ -158,13 +152,13 @@ export const MapboxViewer: React.FC = () => {
       })
       .filter((f) => f.geometry);
 
-    const sourceData: GeoJSON.FeatureCollection = {
+    const sourceData: any = {
       type: 'FeatureCollection',
-      features: features as any,
+      features,
     };
 
     if (map.getSource('sites-source')) {
-      (map.getSource('sites-source') as mapboxgl.GeoJSONSource).setData(sourceData);
+      (map.getSource('sites-source') as maplibregl.GeoJSONSource).setData(sourceData);
     } else {
       map.addSource('sites-source', {
         type: 'geojson',
@@ -207,7 +201,7 @@ export const MapboxViewer: React.FC = () => {
       });
 
       // Click event on polygons
-      map.on('click', 'sites-fill', (e) => {
+      map.on('click', 'sites-fill', (e: any) => {
         if (e.features && e.features[0]) {
           const siteId = e.features[0].properties?.id;
           if (siteId) {
@@ -226,13 +220,13 @@ export const MapboxViewer: React.FC = () => {
     }
   };
 
-  // Initialize Mapbox Instance
+  // Initialize Map Instance
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
     const initialStyle = BASE_STYLES[currentStyleId] || BASE_STYLES['satellite-streets'];
 
-    const map = new mapboxgl.Map({
+    const map = new maplibregl.Map({
       container: mapContainerRef.current,
       style: initialStyle,
       center: [78.9629, 20.5937], // Center of India
@@ -240,10 +234,10 @@ export const MapboxViewer: React.FC = () => {
       pitch: 25,
     });
 
-    map.addControl(new mapboxgl.NavigationControl(), 'top-right');
-    map.addControl(new mapboxgl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
 
-    // Initialize Mapbox Draw
+    // Initialize Mapbox Draw (compatible with MapLibre GL IControl)
     const draw = new MapboxDraw({
       displayControlsDefault: false,
       controls: {
@@ -253,11 +247,11 @@ export const MapboxViewer: React.FC = () => {
       defaultMode: 'simple_select',
     });
 
-    map.addControl(draw, 'top-right');
+    map.addControl(draw as unknown as maplibregl.IControl, 'top-right');
     drawRef.current = draw;
     mapRef.current = map;
 
-    map.on('draw.create', (e: any) => {
+    (map as any).on('draw.create', (e: any) => {
       const feature = e.features[0];
       if (feature) {
         setDrawnPolygon(feature);
@@ -277,7 +271,7 @@ export const MapboxViewer: React.FC = () => {
     // Ensure resize on container layout adjustments
     const resizeTimer = setTimeout(() => {
       map.resize();
-    }, 400);
+    }, 300);
 
     return () => {
       clearTimeout(resizeTimer);
@@ -299,7 +293,6 @@ export const MapboxViewer: React.FC = () => {
     e.preventDefault();
     if (!customToken.trim()) return;
     localStorage.setItem('darukaa_custom_mapbox_token', customToken.trim());
-    mapboxgl.accessToken = customToken.trim();
     setTokenSaved(true);
     setTimeout(() => {
       setTokenSaved(false);
@@ -341,7 +334,7 @@ export const MapboxViewer: React.FC = () => {
 
   return (
     <div className="relative w-full h-full bg-carbon-950">
-      {/* Mapbox Canvas */}
+      {/* Map Canvas */}
       <div ref={mapContainerRef} className="w-full h-full" />
 
       {/* Layer Style Switcher Widget */}
@@ -440,7 +433,7 @@ export const MapboxViewer: React.FC = () => {
 
       {/* Legend & Projection pill */}
       <div className="absolute bottom-6 right-4 z-10 hidden md:flex items-center space-x-4 px-3 py-1.5 rounded-lg bg-carbon-900/85 backdrop-blur-md border border-slate-800 text-[11px] text-slate-300 shadow-lg">
-        <span className="text-slate-400">Projection: EPSG:4326 (WGS84)</span>
+        <span className="text-slate-400">Engine: WebGL Geospatial (EPSG:4326)</span>
         <span className="text-slate-700">|</span>
         <div className="flex items-center space-x-3">
           <span className="flex items-center space-x-1">
