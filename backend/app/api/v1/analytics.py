@@ -3,7 +3,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user_optional, get_db
 from app.models.project import Project
 from app.models.site import Site
 from app.models.user import User
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/analytics", tags=["Analytics & MRV"])
 @router.get("/portfolio/overview", response_model=dict[str, Any])
 def get_portfolio_overview(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     """Returns top-level aggregate KPIs for the executive analytics dashboard."""
     projects = db.query(Project).all()
@@ -54,7 +54,7 @@ def get_portfolio_overview(
 def get_site_analytics(
     site_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     """
     Returns granular time-series data and formatted Highcharts series for a site,

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_current_user_optional, get_db
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectDetail, ProjectOut, SiteBrief
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/projects", tags=["Projects"])
 @router.get("/", response_model=list[ProjectOut])
 def list_projects(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     """Retrieve all projects with aggregated portfolio metrics."""
     projects = db.query(Project).order_by(Project.created_at.desc()).all()
@@ -84,7 +84,7 @@ def create_project(
 def get_project_by_id(
     project_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     """Retrieve detailed information for a single project including its sites."""
     project = db.query(Project).filter(Project.id == project_id).first()

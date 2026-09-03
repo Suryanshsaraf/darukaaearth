@@ -31,12 +31,15 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [isDrawingMode, setIsDrawingMode] = useState<boolean>(false);
   const [drawnPolygon, setDrawnPolygon] = useState<any | null>(null);
-  const [flyToLocation, setFlyToLocation] = useState<{ lng: number; lat: number; zoom?: number } | null>(null);
+  const [flyToLocation, setFlyToLocation] = useState<{
+    lng: number;
+    lat: number;
+    zoom?: number;
+  } | null>(null);
   const [portfolio, setPortfolio] = useState<PortfolioOverview | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
   const refreshData = async () => {
-    if (!isAuthenticated) return;
     setLoading(true);
     try {
       const [projList, siteList, overview] = await Promise.all([
@@ -55,13 +58,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
-      refreshData();
-    } else {
-      setProjects([]);
-      setSites([]);
-      setPortfolio(null);
-    }
+    refreshData();
   }, [isAuthenticated, selectedProjectId]);
 
   const triggerFlyTo = (lng: number, lat: number, zoom = 12) => {

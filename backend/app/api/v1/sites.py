@@ -5,7 +5,7 @@ from geoalchemy2.shape import from_shape
 from shapely.geometry import shape
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_current_user_optional, get_db
 from app.models.project import Project
 from app.models.site import Site
 from app.models.user import User
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/sites", tags=["Sites & Geospatial"])
 def get_all_sites_geojson(
     project_id: str | None = Query(None, description="Optional project ID filter"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     """
     Returns all conservation sites as a standard GeoJSON FeatureCollection,
@@ -72,7 +72,7 @@ def get_all_sites_geojson(
 def list_sites(
     project_id: str | None = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     """List all sites with basic summary information."""
     query = db.query(Site)
@@ -208,7 +208,7 @@ def create_site_from_polygon(
 def get_site_by_id(
     site_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     """Retrieve details of a single site."""
     site = db.query(Site).filter(Site.id == site_id).first()

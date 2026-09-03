@@ -46,9 +46,24 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         ) from None
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == user_id, User.is_active.is_(True)).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
     return user
+
+
+def get_current_user_optional(
+    db: Session = Depends(get_db),
+    cred: HTTPAuthorizationCredentials | None = Depends(security),
+) -> User | None:
+    if not cred:
+        return None
+    token = cred.credentials
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            return None
+        return db.query(User).filter(User.id == user_id, User.is_active.is_(True)).first()
+    except Exception:
+        return None
