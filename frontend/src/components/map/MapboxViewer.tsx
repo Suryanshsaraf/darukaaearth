@@ -10,7 +10,7 @@ mapboxgl.accessToken =
   import.meta.env.VITE_MAPBOX_TOKEN ||
   'pk.eyJ1IjoiZGFydWthYS1lYXJ0aCIsImEiOiJjbTdtOGUxdXowMWdsMm5zYWdtOWlhMG5yIn0.open';
 
-// High-Resolution Geospatial Base Maps (100% Token-Free & Open)
+// High-Resolution Geospatial Base Maps (100% Token-Free, Watermark-Free & Open)
 const BASE_STYLES: Record<string, any> = {
   'satellite-streets': {
     version: 8,
@@ -23,11 +23,10 @@ const BASE_STYLES: Record<string, any> = {
         tileSize: 256,
         attribution: '&copy; Esri World Imagery & Earth Observation',
       },
-      'carto-labels': {
+      'esri-labels': {
         type: 'raster',
         tiles: [
-          'https://a.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}@2x.png',
-          'https://b.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}@2x.png',
+          'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
         ],
         tileSize: 256,
       },
@@ -41,9 +40,9 @@ const BASE_STYLES: Record<string, any> = {
         maxzoom: 19,
       },
       {
-        id: 'carto-labels-layer',
+        id: 'esri-labels-layer',
         type: 'raster',
-        source: 'carto-labels',
+        source: 'esri-labels',
         minzoom: 0,
         maxzoom: 20,
       },
@@ -52,22 +51,34 @@ const BASE_STYLES: Record<string, any> = {
   'dark-analytics': {
     version: 8,
     sources: {
-      'carto-dark': {
+      'esri-dark-base': {
         type: 'raster',
         tiles: [
-          'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-          'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-          'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+          'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
         ],
         tileSize: 256,
-        attribution: '&copy; CARTO Dark Matter',
+        attribution: '&copy; Esri Dark Canvas',
+      },
+      'esri-dark-labels': {
+        type: 'raster',
+        tiles: [
+          'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+        ],
+        tileSize: 256,
       },
     },
     layers: [
       {
-        id: 'carto-dark-layer',
+        id: 'esri-dark-base-layer',
         type: 'raster',
-        source: 'carto-dark',
+        source: 'esri-dark-base',
+        minzoom: 0,
+        maxzoom: 20,
+      },
+      {
+        id: 'esri-dark-labels-layer',
+        type: 'raster',
+        source: 'esri-dark-labels',
         minzoom: 0,
         maxzoom: 20,
       },
